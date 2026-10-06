@@ -1,0 +1,25 @@
+import { useEffect, useState, type ReactNode } from "react";
+import { Filter, SlidersHorizontal, X } from "lucide-react";
+import { useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
+import { setPageSeo } from "@/lib/seo";
+import { PageFrame, ProductGrid, PageTitle, type StoreCategory } from "@/components/storefront";
+
+const sizes = ["39", "40", "41", "42", "43"];
+const colors = ["Trắng xám", "Cam đất", "Xanh rừng", "Cát"];
+
+export default function Collection() {
+  const [location, setLocation] = useLocation();
+  const slug = location.startsWith("/collections/") ? location.split("/")[2] ?? "all" : undefined;
+  const searchQuery = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("q") ?? "";
+  const categoriesQuery = trpc.catalog.categories.useQuery();
+  const [size, setSize] = useState(""); const [color, setColor] = useState(""); const [sort, setSort] = useState<"featured" | "newest" | "price-asc" | "price-desc">("featured"); const [minPrice, setMinPrice] = useState(0); const [maxPrice, setMaxPrice] = useState(4000000); const [filterOpen, setFilterOpen] = useState(false);
+  const query = trpc.catalog.list.useQuery({ category: slug === "all" ? undefined : slug, search: searchQuery || undefined, size: size || undefined, color: color || undefined, sort, minPrice: minPrice || undefined, maxPrice: maxPrice < 4000000 ? maxPrice : undefined, pageSize: 24 });
+  const categories = categoriesQuery.data ?? []; const category = categories.find(item => item.slug === slug);
+  useEffect(() => setPageSeo({ title: `${category?.name ?? (searchQuery ? `Tìm kiếm: ${searchQuery}` : "Tất cả sản phẩm")} – ShoeHub`, description: category?.description ?? "Những đôi giày được chọn kỹ — từ sản phẩm bán chạy đến các thiết kế cho từng nhịp sống." }), [category?.description, category?.name, searchQuery]);
+  const heading = searchQuery ? `Kết quả cho “${searchQuery}”` : category?.name ?? "Tất cả sản phẩm";
+  const activeFilters = [size, color, minPrice > 0 ? "min" : "", maxPrice < 4000000 ? "max" : ""].filter(Boolean).length;
+  const reset = () => { setSize(""); setColor(""); setMinPrice(0); setMaxPrice(4000000); };
+  return <PageFrame categories={categories as StoreCategory[]}><main><PageTitle eyebrow={searchQuery ? "Tìm giày" : "Bộ sưu tập giày"} title={heading} body={category?.description ?? "Mỗi đôi được chọn kỹ để đồng hành cùng bạn mỗi ngày."} /><section className="container collection-layout"><aside className={filterOpen ? "filter-panel filter-panel--open" : "filter-panel"}><div className="filter-panel__head"><strong>Bộ lọc</strong><button className="icon-button" onClick={() => setFilterOpen(false)} aria-label="Đóng bộ lọc"><X size={18} /></button></div><FilterGroup label="Quy cách"><div className="size-options">{sizes.map(option => <button key={option} className={size === option ? "size-option size-option--active" : "size-option"} onClick={() => setSize(size === option ? "" : option)}>{option}</button>)}</div></FilterGroup><FilterGroup label="Màu sắc"><div className="color-options">{colors.map(option => <button key={option} className={color === option ? "filter-link filter-link--active" : "filter-link"} onClick={() => setColor(color === option ? "" : option)}>{option}</button>)}</div></FilterGroup><FilterGroup label="Khoảng giá"><div className="price-range-label"><span>{minPrice ? `${(minPrice / 1000).toFixed(0)}k` : "0đ"}</span><span>{maxPrice === 4000000 ? "4tr+" : `${(maxPrice / 1000).toFixed(0)}k`}</span></div><input type="range" min="0" max="4000000" step="100000" value={maxPrice} onChange={event => setMaxPrice(Number(event.target.value))} /></FilterGroup>{activeFilters > 0 && <button className="text-link filter-reset" onClick={reset}>Xóa bộ lọc <X size={14} /></button>}</aside>{filterOpen && <button className="filter-overlay" aria-label="Đóng bộ lọc" onClick={() => setFilterOpen(false)} />}<div className="collection-results"><div className="collection-toolbar"><div className="collection-toolbar__count">{query.isLoading ? "Đang tải" : `${query.data?.total ?? 0} sản phẩm`}{activeFilters > 0 && <span className="active-filter-count">{activeFilters}</span>}</div><div className="collection-toolbar__actions"><button className="filter-trigger" onClick={() => setFilterOpen(true)}><SlidersHorizontal size={16} /> Bộ lọc {activeFilters > 0 && `(${activeFilters})`}</button><label className="sort-select"><span>Sắp xếp:</span><select value={sort} onChange={event => setSort(event.target.value as typeof sort)}><option value="featured">Nổi bật</option><option value="newest">Mới nhất</option><option value="price-asc">Giá thấp đến cao</option><option value="price-desc">Giá cao đến thấp</option></select></label></div></div><ProductGrid products={query.data?.products ?? []} loading={query.isLoading} /></div></section></main></PageFrame>;
+}
+function FilterGroup({ label, children }: { label: string; children: ReactNode }) { return <div className="filter-group"><div className="filter-group__label"><span>{label}</span><Filter size={13} /></div>{children}</div>; }

@@ -1,0 +1,28 @@
+{
+  "routes": [
+    { "path": "/", "title": "Đặt giày" },
+    { "path": "/collections/:slug", "title": "Danh mục giày" },
+    { "path": "/search", "title": "Tìm giày" },
+    { "path": "/products/:slug", "title": "Chi tiết sản phẩm" },
+    { "path": "/cart", "title": "Giỏ hàng" },
+    { "path": "/checkout", "title": "Thanh toán" },
+    { "path": "/order-success/:orderId", "title": "Đặt hàng thành công" },
+    { "path": "/orders/lookup", "title": "Lịch sử đơn hàng" },
+    { "path": "/account", "title": "Tài khoản" },
+    { "path": "/account/orders", "title": "Đơn hàng của tôi" },
+    { "path": "/account/orders/:orderId", "title": "Chi tiết đơn hàng" },
+    { "path": "/login", "title": "Đăng nhập" },
+    { "path": "/seller", "title": "Kênh người bán" },
+    { "path": "/admin", "title": "Quản trị cửa hàng" },
+    { "path": "/admin/products", "title": "Quản lý sản phẩm" },
+    { "path": "/admin/products/:id", "title": "Chỉnh sửa sản phẩm" },
+    { "path": "/admin/orders", "title": "Quản lý đơn hàng" },
+    { "path": "/admin/customers", "title": "Quản lý khách hàng" },
+    { "path": "/admin/promotions", "title": "Mã giảm giá" },
+    { "path": "/policies/privacy", "title": "Chính sách bảo mật" },
+    { "path": "/policies/terms", "title": "Điều khoản sử dụng" },
+    { "path": "/policies/shipping", "title": "Giao nhận" },
+    { "path": "/policies/returns", "title": "Đổi trả" },
+    { "path": "/404", "title": "Không tìm thấy" }
+  ]
+}

@@ -1,0 +1,21 @@
+import { useEffect, useState } from "react";
+import { ArrowLeft, Check, Save, Star } from "lucide-react";
+import { Link } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
+import { formatVnd } from "@/lib/store";
+import { LoadingBlock, PageFrame } from "@/components/storefront";
+
+export default function AdminProducts() {
+  const auth = useAuth();
+  const enabled = auth.user?.role === "admin";
+  const products = trpc.admin.products.useQuery(undefined, { enabled });
+  const inventory = trpc.admin.inventory.useQuery(undefined, { enabled });
+  const [drafts, setDrafts] = useState<Record<number, { onHand: string; threshold: string }>>({});
+  const update = trpc.admin.updateProduct.useMutation({ onSuccess: () => products.refetch() });
+  const adjust = trpc.admin.adjustInventory.useMutation({ onSuccess: () => inventory.refetch() });
+  useEffect(() => { document.title = "Sản phẩm & tồn kho – ShoeHub"; }, []);
+  if (!enabled) return <PageFrame><main className="container private-page"><div className="private-card"><p className="eyebrow">Admin only</p><h1>Không có quyền truy cập.</h1><Link href="/admin" className="button button--dark">Về admin</Link></div></main></PageFrame>;
+  const draftFor = (item: { variantId: number; onHand: number; lowStockThreshold: number }) => drafts[item.variantId] ?? { onHand: String(item.onHand), threshold: String(item.lowStockThreshold) };
+  return <PageFrame><main className="container admin-page"><Link className="back-link" href="/admin"><ArrowLeft size={15} /> Quản trị</Link><div className="admin-heading"><div><p className="eyebrow">Catalog & inventory</p><h1>Sản phẩm & tồn kho.</h1><p>Giá, trạng thái và tồn kho được lưu qua mutation có kiểm tra role, không tin dữ liệu từ trình duyệt.</p></div></div>{products.isLoading || inventory.isLoading ? <LoadingBlock /> : <><div className="admin-product-table">{products.data?.map(product => <div className="admin-product-row admin-product-row--large admin-product-row--editor" key={product.id}><img src={product.images[0]?.url} alt="" /><div><strong>{product.name}</strong><span>{product.slug} · {product.status}</span><div className="admin-inline-actions"><label>Tên<input defaultValue={product.name} onBlur={event => { if (event.target.value.trim() && event.target.value.trim() !== product.name) update.mutate({ id: product.id, name: event.target.value.trim() }); }} /></label><label>Giá<input type="number" min="1" defaultValue={product.price} onBlur={event => { const price = Number(event.target.value); if (price > 0 && price !== product.price) update.mutate({ id: product.id, price }); }} /></label></div></div><b>{formatVnd(product.price)}</b><select value={product.status} disabled={update.isPending} onChange={event => update.mutate({ id: product.id, status: event.target.value as "active" | "draft" | "archived" })} aria-label={`Trạng thái ${product.name}`}><option value="active">active</option><option value="draft">draft</option><option value="archived">archived</option></select><button className={product.featured ? "admin-star admin-star--active" : "admin-star"} disabled={update.isPending} onClick={() => update.mutate({ id: product.id, featured: !product.featured })} aria-label={product.featured ? "Bỏ nổi bật" : "Đặt nổi bật"}>{product.featured ? <Check size={14} /> : <Star size={14} />}</button><div className="admin-variant-list">{inventory.data?.filter(item => item.productId === product.id).map(item => { const draft = draftFor(item); return <div className="admin-variant-row" key={item.variantId}><span><strong>{item.sku}</strong><small>{item.productName} · {item.available} khả dụng</small></span><label>Tồn<input type="number" min="0" value={draft.onHand} onChange={event => setDrafts(current => ({ ...current, [item.variantId]: { ...draft, onHand: event.target.value } }))} /></label><label>Ngưỡng<input type="number" min="0" value={draft.threshold} onChange={event => setDrafts(current => ({ ...current, [item.variantId]: { ...draft, threshold: event.target.value } }))} /></label><button className="button button--small button--ghost" disabled={adjust.isPending} onClick={() => adjust.mutate({ variantId: item.variantId, onHand: Number(draft.onHand), lowStockThreshold: Number(draft.threshold) })}><Save size={13} /> Lưu</button></div>; })}</div></div>)}</div></>}</main></PageFrame>;
+}

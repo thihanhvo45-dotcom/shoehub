@@ -1,0 +1,9 @@
+import { useEffect } from "react";
+import { ArrowLeft } from "lucide-react";
+import { Link } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
+import { formatVnd } from "@/lib/store";
+import { LoadingBlock, PageFrame } from "@/components/storefront";
+
+export default function AdminOrders() { const auth = useAuth(); const enabled = auth.user?.role === "admin"; const orders = trpc.admin.orders.useQuery(undefined, { enabled }); const update = trpc.admin.updateOrderStatus.useMutation({ onSuccess: () => orders.refetch() }); useEffect(() => { document.title = "Quản lý đơn hàng hàng – ShoeHub"; }, []); if (!enabled) return <PageFrame><main className="container private-page"><div className="private-card"><p className="eyebrow">Admin only</p><h1>Không có quyền truy cập.</h1><Link href="/admin" className="button button--dark">Về admin</Link></div></main></PageFrame>; return <PageFrame><main className="container admin-page"><Link className="back-link" href="/admin"><ArrowLeft size={15} /> Quản trị</Link><div className="admin-heading"><div><p className="eyebrow">Orders</p><h1>Đơn hàng.</h1></div></div>{orders.isLoading ? <LoadingBlock /> : <div className="admin-product-table">{orders.data?.map(order => <div className="admin-row admin-row--large" key={order.id}><div><strong>{order.orderNumber}</strong><span>{order.recipientName} · {order.phone}</span></div><strong>{formatVnd(order.total)}</strong><select value={order.orderStatus} onChange={event => update.mutate({ orderId: order.id, orderStatus: event.target.value as typeof order.orderStatus })}><option value="pending">pending</option><option value="confirmed">confirmed</option><option value="packing">packing</option><option value="shipping">shipping</option><option value="completed">completed</option><option value="cancelled">cancelled</option></select></div>)}</div>}</main></PageFrame>; }
