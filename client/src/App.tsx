@@ -1,6 +1,6 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Route, Switch } from "wouter";
+import { Route, Router as WouterRouter, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
@@ -13,6 +13,8 @@ import OrderLookup from "./pages/OrderLookup";
 import Account from "./pages/Account";
 import AccountOrder from "./pages/AccountOrder";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Seller from "./pages/Seller";
 import Policy from "./pages/Policy";
 import Admin from "./pages/Admin";
 import AdminProducts from "./pages/AdminProducts";
@@ -35,13 +37,14 @@ function Router() {
     <Route path="/account/orders" component={Account} />
     <Route path="/account" component={Account} />
     <Route path="/login" component={Login} />
+    <Route path="/register" component={Register} />
     <Route path="/admin/products/:id" component={AdminProducts} />
     <Route path="/admin/products" component={AdminProducts} />
     <Route path="/admin/orders" component={AdminOrders} />
     <Route path="/admin/customers" component={AdminCustomers} />
     <Route path="/admin/promotions" component={AdminPromotions} />
     <Route path="/admin" component={Admin} />
-    <Route path="/seller" component={Admin} />
+    <Route path="/seller" component={Seller} />
     <Route path="/policies/:kind" component={Policy} />
     <Route path="/404" component={NotFound} />
     <Route component={NotFound} />
@@ -49,5 +52,6 @@ function Router() {
 }
 
 export default function App() {
-  return <ErrorBoundary><ThemeProvider defaultTheme="light"><TooltipProvider><Toaster /><Router /></TooltipProvider></ThemeProvider></ErrorBoundary>;
+  const base = import.meta.env.BASE_URL === "/" ? "" : import.meta.env.BASE_URL.replace(/\/$/, "");
+  return <ErrorBoundary><ThemeProvider defaultTheme="light"><TooltipProvider><Toaster /><WouterRouter base={base}><Router /></WouterRouter></TooltipProvider></ThemeProvider></ErrorBoundary>;
 }

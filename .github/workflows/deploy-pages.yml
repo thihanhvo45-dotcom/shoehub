@@ -38,7 +38,7 @@ jobs:
 
       - name: Build static frontend
         run: |
-          VITE_BASE_PATH="/${{ github.event.repository.name }}/" pnpm run build:static
+          VITE_STATIC_DEMO=true VITE_BASE_PATH="/${{ github.event.repository.name }}/" pnpm run build:static
           cp dist/public/index.html dist/public/404.html
           touch dist/public/.nojekyll
 

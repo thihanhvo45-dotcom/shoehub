@@ -29,13 +29,15 @@ export const users = mysqlTable(
     name: text("name"),
     email: varchar("email", { length: 320 }),
     loginMethod: varchar("loginMethod", { length: 64 }),
-    role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+    passwordHash: varchar("passwordHash", { length: 255 }),
+    role: mysqlEnum("role", ["user", "buyer", "seller", "admin"]).default("user").notNull(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
     lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
   },
   table => ({
     emailIdx: index("users_email_idx").on(table.email),
+    emailUnique: uniqueIndex("users_email_unique").on(table.email),
   }),
 );
 

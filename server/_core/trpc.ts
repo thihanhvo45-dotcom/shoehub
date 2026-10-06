@@ -36,6 +36,16 @@ const requireUser = t.middleware(async opts => {
 
 export const protectedProcedure = t.procedure.use(requireUser);
 
+export const sellerProcedure = t.procedure.use(
+  t.middleware(async opts => {
+    const { ctx, next } = opts;
+    if (!ctx.user || ctx.user.role !== "seller") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Khu vực này chỉ dành cho tài khoản người bán." });
+    }
+    return next({ ctx: { ...ctx, user: ctx.user } });
+  }),
+);
+
 export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;

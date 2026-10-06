@@ -1,9 +1,12 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { adminProcedure, protectedProcedure, publicProcedure, router, sellerProcedure } from "./_core/trpc";
+import { sdk } from "./_core/sdk";
+import { consumeAuthAttempt, hashPassword, verifyPassword } from "./password-auth";
+import { createPasswordUser, getUserByEmail } from "./db";
 import {
   createOrder,
   createCoupon,
@@ -69,7 +72,46 @@ function publicCheckoutMessage(error: unknown) {
 export const appRouter = router({
   system: systemRouter,
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+    me: publicProcedure.query(({ ctx }) => {
+      if (!ctx.user) return null;
+      const { passwordHash: _passwordHash, ...publicUser } = ctx.user;
+      return publicUser;
+    }),
+    register: publicProcedure.input(z.object({
+      name: z.string().trim().min(2).max(120),
+      email: z.string().trim().email().max(320).transform(value => value.toLowerCase()),
+      password: z.string().min(10).max(128),
+      role: z.enum(["buyer", "seller"]),
+    })).mutation(async ({ input, ctx }) => {
+      if (!consumeAuthAttempt(`register:${ctx.req.ip}`, 5)) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Bạn đã tạo quá nhiều yêu cầu. Vui lòng thử lại sau 15 phút." });
+      const existing = await getUserByEmail(input.email);
+      if (existing) throw new TRPCError({ code: "CONFLICT", message: "Email này đã có tài khoản. Hãy đăng nhập hoặc dùng email khác." });
+      let user;
+      try {
+        user = await createPasswordUser({ name: input.name, email: input.email, passwordHash: await hashPassword(input.password), role: input.role });
+      } catch (error) {
+        if (error && typeof error === "object" && "code" in error && error.code === "ER_DUP_ENTRY") throw new TRPCError({ code: "CONFLICT", message: "Email này đã có tài khoản. Hãy đăng nhập hoặc dùng email khác." });
+        throw error;
+      }
+      const token = await sdk.createSessionToken(user.openId, { name: user.name ?? "", expiresInMs: ONE_YEAR_MS });
+      ctx.res.cookie(COOKIE_NAME, token, { ...getSessionCookieOptions(ctx.req), maxAge: ONE_YEAR_MS });
+      const { passwordHash: _passwordHash, ...publicUser } = user;
+      return publicUser;
+    }),
+    login: publicProcedure.input(z.object({
+      email: z.string().trim().email().max(320).transform(value => value.toLowerCase()),
+      password: z.string().min(1).max(128),
+    })).mutation(async ({ input, ctx }) => {
+      const email = input.email.toLowerCase();
+      if (!consumeAuthAttempt(`login:${ctx.req.ip}:${email}`, 10)) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Quá nhiều lần đăng nhập. Vui lòng thử lại sau 15 phút." });
+      const user = await getUserByEmail(email);
+      const valid = user?.passwordHash ? await verifyPassword(input.password, user.passwordHash) : false;
+      if (!user || !valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Email hoặc mật khẩu không đúng." });
+      const token = await sdk.createSessionToken(user.openId, { name: user.name ?? "", expiresInMs: ONE_YEAR_MS });
+      ctx.res.cookie(COOKIE_NAME, token, { ...getSessionCookieOptions(ctx.req), maxAge: ONE_YEAR_MS });
+      const { passwordHash: _passwordHash, ...publicUser } = user;
+      return publicUser;
+    }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
@@ -133,6 +175,12 @@ export const appRouter = router({
   account: router({
     orders: protectedProcedure.query(({ ctx }) => getOrdersForUser(ctx.user)),
     order: protectedProcedure.input(z.object({ orderNumber: z.string().trim().min(3).max(40) })).query(({ ctx, input }) => getOrderForUser(ctx.user, input.orderNumber)),
+  }),
+  seller: router({
+    profile: sellerProcedure.query(({ ctx }) => {
+      const { passwordHash: _passwordHash, ...profile } = ctx.user;
+      return profile;
+    }),
   }),
   admin: router({
     summary: adminProcedure.query(() => getAdminSummary()),

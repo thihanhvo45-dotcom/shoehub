@@ -29,6 +29,13 @@
       "when": 1790840239898,
       "tag": "0003_messy_praxagora",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1791296497000,
+      "tag": "0004_email_password_accounts",
+      "breakpoints": true
     }
   ]
 }

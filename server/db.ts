@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import { randomUUID } from "node:crypto";
 import { InsertUser, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -86,6 +87,36 @@ export async function getUserByOpenId(openId: string) {
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return result[0];
+}
+
+export async function createPasswordUser(input: {
+  name: string;
+  email: string;
+  passwordHash: string;
+  role: "buyer" | "seller";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const openId = `email:${randomUUID()}`;
+  await db.insert(users).values({
+    openId,
+    name: input.name,
+    email: input.email,
+    loginMethod: "password",
+    passwordHash: input.passwordHash,
+    role: input.role,
+    lastSignedIn: new Date(),
+  });
+  const user = await getUserByOpenId(openId);
+  if (!user) throw new Error("Could not load the newly created account");
+  return user;
 }
 
 // TODO: add feature queries here as your schema grows.
