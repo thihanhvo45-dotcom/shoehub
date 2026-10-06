@@ -1,4 +1,5 @@
 import { defineConfig } from "drizzle-kit";
+import { normalizeMysqlConnectionString } from "./server/mysql-connection";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -10,6 +11,6 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "mysql",
   dbCredentials: {
-    url: connectionString,
+    url: normalizeMysqlConnectionString(connectionString),
   },
 });

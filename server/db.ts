@@ -1,16 +1,27 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import { createPool } from "mysql2";
 import { randomUUID } from "node:crypto";
 import { InsertUser, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { normalizeMysqlConnectionString } from "./mysql-connection";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+
+function createDatabase(connectionString: string) {
+  const pool = createPool({
+    uri: normalizeMysqlConnectionString(connectionString),
+    connectionLimit: 5,
+    waitForConnections: true,
+  });
+  return drizzle(pool);
+}
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      _db = createDatabase(process.env.DATABASE_URL);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
