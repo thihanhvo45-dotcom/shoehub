@@ -11,7 +11,7 @@ let _db: ReturnType<typeof drizzle> | null = null;
 function createDatabase(connectionString: string) {
   const pool = createPool({
     uri: normalizeMysqlConnectionString(connectionString),
-    connectionLimit: 5,
+    connectionLimit: process.env.NETLIFY === "true" ? 1 : 5,
     waitForConnections: true,
   });
   return drizzle(pool);

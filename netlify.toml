@@ -1,0 +1,30 @@
+[build]
+  command = "npx --yes pnpm@9.15.9 run deploy:build"
+  publish = "dist/public"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20.20.2"
+  AWS_LAMBDA_JS_RUNTIME = "nodejs22.x"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["express"]
+  included_files = ["server/certs/aiven-project-ca.pem"]
+
+[[redirects]]
+  force = true
+  from = "/api/*"
+  status = 200
+  to = "/.netlify/functions/api/:splat"
+
+[[redirects]]
+  force = true
+  from = "/sitemap.xml"
+  status = 200
+  to = "/api/sitemap.xml"
+
+[[redirects]]
+  from = "/*"
+  status = 200
+  to = "/index.html"

@@ -18,11 +18,26 @@ export default function OrderSuccess() {
   useEffect(() => setPageSeo({ title: "Đặt hàng thành công – ShoeHub", description: "Đơn hàng của bạn đã được tiếp nhận.", noindex: true }), []);
   useEffect(() => {
     if (!trackingPhone) return;
-    const source = new EventSource(`/api/orders/${encodeURIComponent(orderNumber)}/events?phone=${encodeURIComponent(trackingPhone)}`);
-    source.addEventListener("order", event => { setTracking(JSON.parse((event as MessageEvent).data) as Tracking); setTrackingError(""); });
-    source.onerror = () => setTrackingError("Không kết nối được realtime. Hãy thử lại sau ít giây.");
-    return () => source.close();
+    let stopped = false;
+    let inFlight = false;
+    const refresh = async () => {
+      if (stopped || inFlight) return;
+      inFlight = true;
+      try {
+        const response = await fetch(`/api/orders/${encodeURIComponent(orderNumber)}/events?phone=${encodeURIComponent(trackingPhone)}`, { cache: "no-store" });
+        if (!response.ok) throw new Error("Tracking request failed");
+        const latest = await response.json() as Tracking;
+        if (!stopped) { setTracking(latest); setTrackingError(""); }
+      } catch {
+        if (!stopped) setTrackingError("Không cập nhật được trạng thái lúc này. Hệ thống sẽ thử lại sau ít giây.");
+      } finally {
+        inFlight = false;
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 5000);
+    return () => { stopped = true; window.clearInterval(timer); };
   }, [orderNumber, trackingPhone]);
   const connect = () => { setTracking(null); setTrackingError(""); setTrackingPhone(phone.trim()); };
-  return <PageFrame><main className="container success-page"><div className="success-card"><div className="success-icon"><Check size={25} /></div><p className="eyebrow">Cảm ơn bạn đã đặt hàng</p><h1>Đơn hàng đã được tiếp nhận.</h1><p>Chúng tôi sẽ gọi xác nhận trong thời gian sớm nhất. Bạn có thể theo dõi trạng thái đơn bằng số điện thoại đặt hàng.</p><div className="success-order"><span>Mã đơn hàng</span><strong>{orderNumber}</strong></div><div className="tracking-connect"><label>Số điện thoại đặt hàng<input value={phone} onChange={event => setPhone(event.target.value)} placeholder="090 123 4567" inputMode="tel" /></label><button className="button button--accent button--wide" onClick={connect} disabled={phone.trim().length < 8}><Radio size={16} /> Theo dõi realtime</button>{trackingError && <p className="form-error">{trackingError}</p>}</div>{tracking && <section className="tracking-card"><div className="tracking-card__head"><div><p className="eyebrow">Cập nhật trực tiếp</p><h2>{labels[tracking.orderStatus] ?? tracking.orderStatus}</h2></div><RefreshCw size={18} /></div><p className="tracking-payment">Thanh toán: {tracking.paymentStatus === "paid" ? "Đã thanh toán" : tracking.paymentStatus === "failed" ? "Thất bại" : "Đang chờ"}</p><div className="tracking-timeline">{tracking.events.map(event => <div className="tracking-event" key={event.id}><span className="tracking-event__dot" /><div><strong>{event.message}</strong><small>{new Date(event.createdAt).toLocaleString("vi-VN")}</small></div></div>)}</div></section>}<div className="success-actions"><Link className="button button--dark" href="/collections/all">Tiếp tục mua sắm <ArrowRight size={16} /></Link><Link className="button button--ghost" href="/account/orders"><Package size={16} /> Xem đơn hàng</Link></div></div></main></PageFrame>;
+  return <PageFrame><main className="container success-page"><div className="success-card"><div className="success-icon"><Check size={25} /></div><p className="eyebrow">Cảm ơn bạn đã đặt hàng</p><h1>Đơn hàng đã được tiếp nhận.</h1><p>Chúng tôi sẽ gọi xác nhận trong thời gian sớm nhất. Bạn có thể theo dõi trạng thái đơn bằng số điện thoại đặt hàng.</p><div className="success-order"><span>Mã đơn hàng</span><strong>{orderNumber}</strong></div><div className="tracking-connect"><label>Số điện thoại đặt hàng<input value={phone} onChange={event => setPhone(event.target.value)} placeholder="090 123 4567" inputMode="tel" /></label><button className="button button--accent button--wide" onClick={connect} disabled={phone.trim().length < 8}><Radio size={16} /> Theo dõi trạng thái</button>{trackingError && <p className="form-error">{trackingError}</p>}</div>{tracking && <section className="tracking-card"><div className="tracking-card__head"><div><p className="eyebrow">Tự động cập nhật</p><h2>{labels[tracking.orderStatus] ?? tracking.orderStatus}</h2></div><RefreshCw size={18} /></div><p className="tracking-payment">Thanh toán: {tracking.paymentStatus === "paid" ? "Đã thanh toán" : tracking.paymentStatus === "failed" ? "Thất bại" : "Đang chờ"}</p><div className="tracking-timeline">{tracking.events.map(event => <div className="tracking-event" key={event.id}><span className="tracking-event__dot" /><div><strong>{event.message}</strong><small>{new Date(event.createdAt).toLocaleString("vi-VN")}</small></div></div>)}</div></section>}<div className="success-actions"><Link className="button button--dark" href="/collections/all">Tiếp tục mua sắm <ArrowRight size={16} /></Link><Link className="button button--ghost" href="/account/orders"><Package size={16} /> Xem đơn hàng</Link></div></div></main></PageFrame>;
 }
